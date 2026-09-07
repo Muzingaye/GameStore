@@ -1,6 +1,7 @@
 using GameStore.Api.Data;
 using GameStore.Api.Dtos;
 using GameStore.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace GameStore.Api.EndPoints;
 
@@ -20,15 +21,25 @@ public static class Games
     {
         var group = app.MapGroup("/games");
 
-        group.MapGet("/", () => games);
-        group.MapGet("/{id}", (int id) =>
+        group.MapGet("/", async (GameStoreContext context) => await context.Games
+        .Include(game => game.Genre)
+        .Select(game => new GameDto(
+            game.Id,
+            game.Name,
+            game.Genre!.Name,
+            game.Price,
+            game.ReleaseDate
+        )).AsNoTracking().ToListAsync());
+        group.MapGet("/{id}", async (int id, GameStoreContext context) =>
         {
-            GameDto? game = games.Find(g => g.Id == id);
-            return game is null ? Results.NotFound() : Results.Ok(game);
+            var game = await context.Games.FindAsync(id);
+            return game is null ? Results.NotFound() : Results.Ok(new GameDetailDto(
+game.Id, game.Name, game.GenreId, game.Price, game.ReleaseDate
+            ));
         })
         .WithName(EndpointName);
 
-        group.MapPost("/", (CreateGameDto newGame, GameStoreContext context) =>
+        group.MapPost("/", async (CreateGameDto newGame, GameStoreContext context) =>
         {
             Game game = new()
             {
@@ -38,7 +49,7 @@ public static class Games
                 ReleaseDate = newGame.ReleaseDate,
             };
             context.Games.Add(game);
-            context.SaveChanges();
+            await context.SaveChangesAsync();
             GameDetailDto gameDto = new(
                 game.Id, game.Name, game.GenreId, game.Price, game.ReleaseDate
             );
@@ -46,13 +57,14 @@ public static class Games
         });
 
 
-        group.MapPut("/{id}", (int id, UpdateGameDto update) =>
+        group.MapPut("/{id}", async (int id, UpdateGameDto update, GameStoreContext context) =>
         {
-            var idx = games.FindIndex(g => g.Id == id);
-            games[idx] = new GameDto(
-        id, update.Name, update.Genre, update.Price, update.ReleaseDate
-
-        );
+            var gam = await context.Games.FindAsync(id);
+            gam.Name = update.Name;
+            gam.GenreId = update.GenreId;
+            gam.Price = update.Price;
+            gam.ReleaseDate = update.ReleaseDate;
+            await context.SaveChangesAsync();
 
             return Results.NoContent();
         });
