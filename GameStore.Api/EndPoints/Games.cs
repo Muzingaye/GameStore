@@ -1,4 +1,6 @@
+using GameStore.Api.Data;
 using GameStore.Api.Dtos;
+using GameStore.Api.Models;
 
 namespace GameStore.Api.EndPoints;
 
@@ -26,17 +28,21 @@ public static class Games
         })
         .WithName(EndpointName);
 
-        group.MapPost("/", (CreateGameDto newGame) =>
+        group.MapPost("/", (CreateGameDto newGame, GameStoreContext context) =>
         {
-            GameDto game = new(
-        games.Count() + 1,
-        newGame.Name,
-        newGame.Genre,
-        newGame.Price,
-        newGame.ReleaseDate
-    );
-            games.Add(game);
-            return Results.CreatedAtRoute(EndpointName, new { id = game.Id }, game);
+            Game game = new()
+            {
+                Name = newGame.Name,
+                GenreId = newGame.GenreId,
+                Price = newGame.Price,
+                ReleaseDate = newGame.ReleaseDate,
+            };
+            context.Games.Add(game);
+            context.SaveChanges();
+            GameDetailDto gameDto = new(
+                game.Id, game.Name, game.GenreId, game.Price, game.ReleaseDate
+            );
+            return Results.CreatedAtRoute(EndpointName, new { id = gameDto.Id }, gameDto);
         });
 
 
@@ -44,8 +50,9 @@ public static class Games
         {
             var idx = games.FindIndex(g => g.Id == id);
             games[idx] = new GameDto(
-      id, update.Name, update.Genre, update.Price, update.ReleaseDate
-    );
+        id, update.Name, update.Genre, update.Price, update.ReleaseDate
+
+        );
 
             return Results.NoContent();
         });

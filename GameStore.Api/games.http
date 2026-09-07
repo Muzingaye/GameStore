@@ -12,7 +12,7 @@ Content-Type: application/json
 
 {
     "Name": "Super mario Bros. Wonder",
-    "Genre": "Platformer",
+    "GenreId": 3,
     "price": 59.99,
     "ReleaseDate": "2032-10-10"
 }
